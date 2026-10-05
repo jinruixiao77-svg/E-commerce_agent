@@ -1,74 +1,82 @@
-# E-commerce_agent
-基于 **LangGraph + 通义千问 + MySQL** 实现的电商多智能体客服系统，支持意图识别、订单查询、商品查询、数据统计、数据库交互与流式接口服务，具备对话记忆能力，可实时响应前端请求。
+# E-commerce Agent
 
----
+基于 **LangGraph + LangChain** 的电商智能客服 Agent，支持意图识别、订单/商品查询、数据统计，以及基于 RAG 的售后政策问答，并通过 FastAPI 提供流式接口。
 
-## 项目架构
-- **主智能体 (`main.py`)**：统一意图识别，智能路由到对应子智能体
-- **订单查询智能体 (`agent/db_agent.py`)**：根据订单号 / 手机号 / 用户名查询订单详情
-- **数据统计智能体 (`agent/product_inquiry_agent.py`)**：统计已完成订单销量、销售额
-- **商品查询智能体 (`agent/product_search_agent.py`)**：查询商品名称、价格、分类
-- **数据库工具 (`tools/db_tools.py` / `mysql_connect/mysql_db.py`)**：MySQL 查询与写入封装
-- **接口服务 (`app.py`)**：FastAPI 流式接口，支持前端 SSE 调用
+## 功能特性
 
----
-
-## 功能清单
-✅ **用户意图识别**：自动识别商品查询 / 订单查询 / 客服咨询 / 数据统计 / 其它  
-✅ **订单查询**：支持按订单号、手机号、用户名查询订单状态、金额、物流、时间等  
-✅ **商品查询**：查询商品名称、价格、分类信息  
-✅ **订单数据统计**：按日统计已完成订单的销量、销售额  
-✅ **数据库交互**：支持 SELECT 查询 / INSERT 写入  
-✅ **流式接口**：FastAPI + SSE 实时返回回答内容  
-✅ **对话记忆**：基于 InMemorySaver 保留会话上下文  
-
----
+- **意图识别**：自动判断用户输入属于「商品查询 / 订单查询 / 客服咨询 / 数据统计 / 其它」五类之一
+- **订单查询**：通过 MySQL 查询订单、物流、退款等信息
+- **商品查询**：按关键词检索商品、价格、库存
+- **数据统计**：销量、销售额、订单量等日报统计
+- **客服咨询（RAG）**：基于 FAQ 知识库（Chroma 向量库）回答售后、包邮、退货、退款、发货时间等问题
+- **流式输出**：FastAPI + SSE 向前端实时推送回答
 
 ## 技术栈
-- Python 3.10+
-- LangGraph 1.1.10
-- LangChain 1.2.17
-- 通义千问 qwen-plus
-- MySQL
-- FastAPI 0.136.1
-- python-dotenv
 
----
+- **Agent 框架**：LangGraph、LangChain
+- **模型**：通义千问 `qwen-plus`（DashScope OpenAI 兼容接口）
+- **向量检索**：Chroma + `text-embedding-v3`
+- **后端**：FastAPI + Uvicorn
+- **数据库**：MySQL（mysql-connector-python）
+- **追踪**：LangSmith
+
+## 项目结构
+
 ```
-项目架构
 E-commerce_agent/
+├── app.py                        # FastAPI 入口，提供 /chat/stream 流式接口
+├── main.py                       # 主 Agent：意图识别 + 路由（LangGraph）
+├── index.html                    # 前端聊天页面
+├── requirements.txt              # Python 依赖
 ├── agent/
-│   ├── db_agent.py              # 订单查询智能体
-│   ├── product_inquiry_agent.py # 数据统计智能体
-│   └── product_search_agent.py  # 商品查询智能体
+│   ├── db_agent.py               # 订单查询子 Agent
+│   ├── product_inquiry_agent.py  # 数据统计子 Agent
+│   ├── product_search_agent.py   # 商品查询子 Agent
+│   └── rag_agent.py              # 客服咨询 RAG 子 Agent
 ├── tools/
-│   └── db_tools.py              # 数据库工具封装
+│   ├── db_tools.py               # MySQL 查询工具
+│   ├── rag_tools.py              # 知识库检索工具
+│   └── ingest_docs.py            # 知识库文档入库脚本
 ├── mysql_connect/
-│   └── mysql_db.py              # MySQL 连接类
-├── app.py                       # FastAPI 流式接口
-├── main.py                      # 主智能体（意图识别+路由）
-├── test_db.py                   # 数据库测试脚本
-├── .env                         # 环境变量配置
-├── requirements.txt             # 依赖清单
-├── index.html                   # 前端交互页面
-└── README.md                    # 项目说明
+│   ├── mysql_db.py               # MySQL 连接封装
+│   └── test_db.py                # 数据库连接测试
+├── orders.sql / product.sql / user.sql   # 数据库表结构
+├── FAQ.txt / FAQ.pdf             # 客服知识库文档
+└── chroma_db/                    # 向量库（入库后生成，已忽略）
 ```
 
-# 快速开始
+## 快速开始
 
-## 1. 安装依赖
+### 1. 安装依赖
+
 ```bash
 pip install -r requirements.txt
+```
 
+### 2. 配置环境变量
 
-2. 配置环境变量（.env）
-在项目根目录下的.env 文件，填入以下内容：
-DASHSCOPE_API_KEY=你的通义千问API Key
-LANGCHAIN_API_KEY=你的LangSmith API Key
+在项目根目录创建 `.env` 文件：
 
+```
+DASHSCOPE_API_KEY=你的阿里云百炼 API Key
+LANGCHAIN_API_KEY=你的 LangSmith API Key（可选，用于追踪）
+```
 
-3. 配置数据库（mysql_db.py）
-修改数据库连接信息：
+> `.env` 已在 `.gitignore` 中忽略，请勿提交。
+
+### 3. 初始化数据库
+
+导入表结构：
+
+```bash
+mysql -u root -p < user.sql
+mysql -u root -p < product.sql
+mysql -u root -p < orders.sql
+```
+
+并修改 `mysql_connect/mysql_db.py` 末尾的数据库连接信息：
+
+```python
 db = MySQLDatabase(
     host="localhost",
     port=3306,
@@ -76,19 +84,53 @@ db = MySQLDatabase(
     password="你的密码",
     database="你的数据库名"
 )
-需提前创建表：orders、user、product（根据项目提供的数据库文件直接导入即可）
+```
 
+### 4. 构建知识库（RAG）
 
-4. 运行项目
-启动服务：
-python -m uvicorn app:app --reload
+将 FAQ 文档写入向量库：
 
-启动成功后，直接双击打开项目中的 index.html 即可使用前端界面。
+```bash
+python -m tools.ingest_docs
+```
 
+该脚本会扫描根目录下的 `.txt` / `.pdf` 文档，切分后写入 `chroma_db/`（按文件 MD5 去重）。
 
-使用示例
-订单查询：帮我查一下订单 123456
-商品查询：推荐一款手机
-数据统计：今天的销售额是多少
-普通咨询：什么时候发货
+### 5. 启动服务
 
+```bash
+uvicorn app:app --reload
+```
+
+访问 `http://localhost:8000` 打开前端页面。
+
+## API 说明
+
+### `POST /chat/stream`
+
+流式对话接口（SSE）。
+
+请求体：
+
+```json
+{
+  "messages": [{"role": "user", "content": "满多少包邮？"}],
+  "thread_id": "会话ID"
+}
+```
+
+响应为 `text/event-stream`，每段数据格式：
+
+```
+data: {"text": "累计的完整回答内容"}
+```
+
+## 意图路由
+
+| 用户意图 | 示例 | 路由到 |
+|---------|------|--------|
+| 商品查询 | 查商品、推荐、价格、库存 | `product_search_agent` |
+| 订单查询 | 查订单、物流、发货、退款 | `db_agent` |
+| 客服咨询 | 售后、规则、包邮、退货、发货时间 | `rag_agent` |
+| 数据统计 | 销量、销售额、订单量、日报 | `product_inquiry_agent` |
+| 其它 | 闲聊、无关内容 | 直接回复 |
