@@ -23,9 +23,9 @@ class MySQLDatabase:
                     charset="utf8mb4"
                 )
                 if self.connection.is_connected():
-                    print("✅ MySQL 连接成功")
+                    print("MySQL 连接成功")
             except Error as e:
-                print(f"❌ MySQL 连接失败：{e}")
+                print(f"MySQL 连接失败：{e}")
                 raise e
         return self.connection
 
@@ -33,7 +33,7 @@ class MySQLDatabase:
         """关闭连接"""
         if self.connection is not None and self.connection.is_connected():
             self.connection.close()
-            print("✅ MySQL 连接已关闭")
+            print("MySQL 连接已关闭")
 
     def query(self, sql, params=None):
         """执行查询语句（SELECT）"""
