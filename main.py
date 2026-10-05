@@ -14,6 +14,7 @@ from agent.db_agent import graph
 from agent.product_inquiry_agent import graph_product
 from agent.db_agent import respond_user
 from agent.product_search_agent import graph_search
+from agent.rag_agent import graph_rag
 
 response_model = init_chat_model(
     model="qwen-plus",
@@ -45,7 +46,7 @@ PROMPT="""用户问题{question}
 }}
 """
 def respond_user_main(state:MessagesState):
-    question=state["messages"][0].content
+    question=state["messages"][-1].content
     prompt=PROMPT.format(question=question)
     messages=[{"role":"system","content":prompt},*state["messages"]]
     response=response_model.invoke(messages)
@@ -70,6 +71,8 @@ def route_intent(state: MessagesState):
             return "graph_product"
         if intent == "其它":
             return "respond_user"
+        if intent == "客服咨询":
+            return "graph_rag"
         if intent == "商品查询":
             return "graph_search"
         else:
@@ -91,6 +94,7 @@ workflow.add_node("graph",graph)
 workflow.add_node("graph_product",graph_product)
 workflow.add_node("respond_user",respond_user)
 workflow.add_node("graph_search",graph_search)
+workflow.add_node("graph_rag",graph_rag)
 
 
 workflow.add_edge(START,"respond_user_main")
@@ -102,11 +106,13 @@ workflow.add_conditional_edges(
         "graph_product":"graph_product", 
         "respond_user":"respond_user",
         "graph_search":"graph_search", # 路由返回"graph" → 跳转到graph节点
+        "graph_rag":"graph_rag",
         END: END           # 路由返回END → 直接结束
     }
 )
 
 workflow.add_edge("respond_user",END)
+workflow.add_edge("graph_rag",END)
 
 
 app=workflow.compile()
